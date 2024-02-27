@@ -145,6 +145,7 @@ def compute_haplotype_distance(
     else:
         dist = distance_method(a_hap_sums, b_hap_sums)
     return dist
+    
 
 
 @numba.njit
@@ -349,6 +350,8 @@ def perform_ihd_scan(
 
     # store distances at each marker
     focal_dist: np.ndarray = np.zeros(genotype_matrix.shape[0], dtype=np.float64)
+    a_muts: np.ndarray = np.zeros((genotype_matrix.shape[0], spectra.shape[1]), dtype=np.float64)
+    b_muts: np.ndarray = np.zeros((genotype_matrix.shape[0], spectra.shape[1]), dtype=np.float64)
     # loop over every site in the genotype matrix
     for ni in np.arange(genotype_matrix.shape[0]):
         a_hap_idxs = np.where(genotype_matrix[ni] == 0)[0]
@@ -364,8 +367,11 @@ def perform_ihd_scan(
             b_spectra,
             distance_method=distance_method,
         )
+        a_hap_sums, b_hap_sums = compute_spectral_sets(a_spectra, b_spectra)
         focal_dist[ni] = cur_dist
-
+        a_muts[ni] = a_hap_sums
+        b_muts[ni] = b_hap_sums
+        
     if adjust_statistics:
         covariate_matrix_full = np.hstack(
             (
@@ -377,6 +383,122 @@ def perform_ihd_scan(
     else:
         return focal_dist
 
+@numba.njit
+def perform_spectral_scan(
+    spectra: np.ndarray,
+    genotype_matrix: np.ndarray,
+    genotype_similarity: np.ndarray,
+    covariate_ratios: np.ndarray,
+    distance_method: Callable = compute_manual_chisquare,
+    adjust_statistics: bool = True,
+) -> np.ndarray:
+    """Iterate over every genotyped marker in the `genotype_matrix`, 
+    divide the haplotypes into two groups based on sample genotypes at the 
+    marker, and compute the distance between the aggregate mutation spectra
+    of each group. Return a list of cosine distances of length (G, ), where
+    G is the number of genotyped sites.
+
+    Args:
+        spectra (np.ndarray): A 2D numpy array of mutation spectra in \
+            all genotyped samples, of size (N, M) where N is the number of \
+            samples and M is the number of mutation types.
+
+        genotype_matrix (np.ndarray): A 2D numpy array of genotypes at \
+            every genotyped marker, of size (G, N), where G is the number \
+            of genotyped sites and N is the number of samples.
+
+        genotype_similarity (np.ndarray): A 1D numpy array of size (G, ), where \
+            G is the number of genotyped sites. Contains the correlation coefficient \
+            between genome-wide allele frequencies of haplotypes with A vs. B genotypes \
+            at every site.
+
+        covariate_ratios (np.ndarray): A 1D numpy array of size (G, ), where \
+            G is the number of genotyped sites. Contains the ratio of covariate \
+            values between haplotypes with A vs. B genotypes at every site.
+
+        distance_method (Callable, optional): Callable method to compute the \
+            distance between aggregate mutation spectra. Must accept two 1D numpy \
+            arrays and return a single floating point value. Defaults to \
+            `compute_manual_chisquare`.
+
+        adjust_statistics (bool, optional): Whether to compute adjusted statistics \
+            at each marker by regressing genotype similarity against statistics. \
+            Defaults to True.
+
+    Returns:
+        distances (List[np.float64]): List of inter-haplotype \
+        distances at every marker.
+    """
+
+    # store distances at each marker
+    # focal_dist: np.ndarray = np.zeros(genotype_matrix.shape[0], dtype=np.float64)
+    a_muts: np.ndarray = np.zeros((genotype_matrix.shape[0], spectra.shape[1]), dtype=np.float64)
+    b_muts: np.ndarray = np.zeros((genotype_matrix.shape[0], spectra.shape[1]), dtype=np.float64)
+    # loop over every site in the genotype matrix
+    for ni in np.arange(genotype_matrix.shape[0]):
+        a_hap_idxs = np.where(genotype_matrix[ni] == 0)[0]
+        b_hap_idxs = np.where(genotype_matrix[ni] == 2)[0]
+
+        a_spectra, b_spectra = (
+            spectra[a_hap_idxs],
+            spectra[b_hap_idxs],
+        )
+
+        cur_dist = compute_haplotype_distance(
+            a_spectra,
+            b_spectra,
+            distance_method=distance_method,
+        )
+        a_hap_sums, b_hap_sums = compute_spectral_sets(a_spectra, b_spectra)
+    #     focal_dist[ni] = cur_dist
+        a_muts[ni] = a_hap_sums
+        b_muts[ni] = b_hap_sums
+
+    return a_muts, b_muts
+        
+    # if adjust_statistics:
+    #     covariate_matrix_full = np.hstack(
+    #         (
+    #             genotype_similarity.reshape(-1, 1),
+    #             covariate_ratios,
+    #         )
+    #     )
+    #     return compute_residuals(covariate_matrix_full, focal_dist)
+    # else:
+    #     return focal_dist
+
+@numba.njit
+def compute_spectral_sets(
+    a_haps: np.ndarray,
+    b_haps: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute the spectral sets of two collections of haplotype
+    mutation data. The input arrays should both be 2D numpy arrays of size (N, M), 
+    with rows and columns corresponding to samples and mutation types, 
+    respectively.
+
+    Args:
+        a_haps (np.ndarray): 2D array of size (N, M) containing the mutation \
+            spectrum of each sample, where N is the number of samples and M is \
+            the number of mutation types.
+
+        b_haps (np.ndarray): 2D array of size (N, M) containing the mutation \
+            spectrum of each sample, where N is the number of samples and M \
+            is the number of mutation types.
+
+    Returns:
+        a_hap_sums (np.ndarray): The aggregate mutation spectrum of the first \
+            collection of haplotypes.
+
+        b_hap_sums (np.ndarray): The aggregate mutation spectrum of the second \
+            collection of haplotypes.
+    """
+    # first, sum the spectrum arrays such that we add up the
+    # total number of C>T, C>A, etc. across all samples.
+    a_hap_sums = np.sum(a_haps, axis=0)
+    b_hap_sums = np.sum(b_haps, axis=0)
+
+    return a_hap_sums, b_hap_sums
 
 def get_covariate_matrix(
     pheno: pd.DataFrame,
