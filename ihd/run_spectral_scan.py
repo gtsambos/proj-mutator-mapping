@@ -9,6 +9,7 @@ from utils import (
     compute_manual_cosine_distance,
     get_covariate_matrix,
     calculate_covariate_by_marker,
+    get_sample_sizes,
     perform_spectral_scan,
 )
 from schema import IHDResultSchema, MutationSchema
@@ -148,6 +149,10 @@ def main(args):
         distance_method=distance_method,
         adjust_statistics=False,
     )
+
+    sample_sizes = get_sample_sizes(geno_asint_filtered_matrix)
+    print(sample_sizes)
+                                    
 
     # convert out_a and out_b from numpy arrays to pandas dataframes
     out_a_df = pd.DataFrame(out_a)

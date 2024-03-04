@@ -468,6 +468,31 @@ def perform_spectral_scan(
     #     return focal_dist
 
 @numba.njit
+def get_sample_sizes(
+    genotype_matrix: np.ndarray,
+) -> np.ndarray:
+    """Iterate over every genotyped marker in the `genotype_matrix`, 
+    divide the haplotypes into two groups based on sample genotypes at the 
+    marker, and compute the number of samples in each group at each marker.
+
+    Args:
+        genotype_matrix (np.ndarray): A 2D numpy array of genotypes at \
+            every genotyped marker, of size (G, N), where G is the number \
+            of genotyped sites and N is the number of samples.
+
+    Returns:
+        sample_sizes (np.ndarray): Sample sizes in the A and B sets at each locus.
+    """
+    sample_sizes: np.ndarray = np.zeros((genotype_matrix.shape[0], 2), dtype=np.float64)
+    # loop over every site in the genotype matrix
+    for ni in np.arange(genotype_matrix.shape[0]):
+        a_hap_idxs = np.where(genotype_matrix[ni] == 0)[0]
+        b_hap_idxs = np.where(genotype_matrix[ni] == 2)[0]
+        sample_sizes[ni] = np.array([len(a_hap_idxs), len(b_hap_idxs)])
+
+    return sample_sizes
+
+@numba.njit
 def compute_spectral_sets(
     a_haps: np.ndarray,
     b_haps: np.ndarray
