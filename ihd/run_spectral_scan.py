@@ -157,22 +157,27 @@ def main(args):
         adj_a[i] = out_a[i] / sample_sizes[i, 0]
         adj_b[i] = out_b[i] / sample_sizes[i, 1]
 
+    # calculate spectral differences between groups
+    spectral_diff = adj_a - adj_b
 
     # convert from numpy arrays to pandas dataframes and save output
     out_a_df = pd.DataFrame(out_a)
     out_b_df = pd.DataFrame(out_b)
 
-    out_a_df.to_csv(args.out_a, index=False)
-    out_b_df.to_csv(args.out_b, index=False)
+    out_a_df.to_csv("data/spectral-differences/bxd.spd.a.csv", index=False)
+    out_b_df.to_csv("data/spectral-differences/bxd.spd.b.csv", index=False)
 
     adj_a_df = pd.DataFrame(adj_a)
     adj_b_df = pd.DataFrame(adj_b)
 
-    adj_a_df.to_csv(args.adj_a, index=False)
-    adj_b_df.to_csv(args.adj_b, index=False)
+    adj_a_df.to_csv("data/spectral-differences/bxd.spd-adj.a.csv", index=False)
+    adj_b_df.to_csv("data/spectral-differences/bxd.spd-adj.b.csv", index=False)
 
     sample_sizes_df = pd.DataFrame(sample_sizes, columns=["a", "b"])
-    sample_sizes_df.to_csv(args.sample_sizes, index=False)
+    sample_sizes_df.to_csv("data/spectral-differences/bxd.spd.samples.csv", index=False)
+
+    spectral_diff_df = pd.DataFrame(spectral_diff)
+    spectral_diff_df.to_csv(args.diff, index=False)
 
 
 
@@ -189,24 +194,8 @@ if __name__ == "__main__":
         help="Path to config file in JSON format.",
     )
     p.add_argument(
-        "--out_a",
-        help="Path in which to store the results of the spectral scan for set a.",
-    )
-    p.add_argument(
-        "--out_b",
-        help="Path in which to store the results of the spectral scan for set b.",
-    )
-    p.add_argument(
-        "--adj_a",
-        help="Path in which to store the adjusted results of the spectral scan for set a.",
-    )
-    p.add_argument(
-        "--adj_b",
-        help="Path in which to store the adjusted results of the spectral scan for set b.",
-    )
-    p.add_argument(
-        "--sample_sizes",
-        help="Path in which to store the sample sizes for each group.",
+        "--diff",
+        help="Path in which to store the spectral differences between groups.",
     )
     p.add_argument(
         "-k",
