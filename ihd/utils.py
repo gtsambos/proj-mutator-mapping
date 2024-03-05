@@ -387,10 +387,7 @@ def perform_ihd_scan(
 def perform_spectral_scan(
     spectra: np.ndarray,
     genotype_matrix: np.ndarray,
-    genotype_similarity: np.ndarray,
-    covariate_ratios: np.ndarray,
     distance_method: Callable = compute_manual_chisquare,
-    adjust_statistics: bool = True,
 ) -> np.ndarray:
     """Iterate over every genotyped marker in the `genotype_matrix`, 
     divide the haplotypes into two groups based on sample genotypes at the 
@@ -456,16 +453,6 @@ def perform_spectral_scan(
 
     return a_muts, b_muts
         
-    # if adjust_statistics:
-    #     covariate_matrix_full = np.hstack(
-    #         (
-    #             genotype_similarity.reshape(-1, 1),
-    #             covariate_ratios,
-    #         )
-    #     )
-    #     return compute_residuals(covariate_matrix_full, focal_dist)
-    # else:
-    #     return focal_dist
 
 @numba.njit
 def get_sample_sizes(

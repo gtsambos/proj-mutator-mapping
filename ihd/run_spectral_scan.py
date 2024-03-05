@@ -139,27 +139,41 @@ def main(args):
         geno_asint_filtered_matrix,
     )
 
-    # compute the maximum cosine distance between groups of
-    # haplotypes at each site in the genotype matrix
+    # compute overall mutation spectra between mice with B and D alleles
+    # at each locus
     out_a, out_b = perform_spectral_scan(
         spectra,
         geno_asint_filtered_matrix,
-        genotype_similarity,
-        covariate_ratios,
         distance_method=distance_method,
-        adjust_statistics=False,
     )
 
+    # get sample sizes for each group
     sample_sizes = get_sample_sizes(geno_asint_filtered_matrix)
-    print(sample_sizes)
                                     
+    # adjust overall mutation spectra by sample size
+    adj_a = np.zeros(out_a.shape)
+    adj_b = np.zeros(out_b.shape)
+    for i in range(out_a.shape[0]):
+        adj_a[i] = out_a[i] / sample_sizes[i, 0]
+        adj_b[i] = out_b[i] / sample_sizes[i, 1]
 
-    # convert out_a and out_b from numpy arrays to pandas dataframes
+
+    # convert from numpy arrays to pandas dataframes and save output
     out_a_df = pd.DataFrame(out_a)
     out_b_df = pd.DataFrame(out_b)
 
     out_a_df.to_csv(args.out_a, index=False)
     out_b_df.to_csv(args.out_b, index=False)
+
+    adj_a_df = pd.DataFrame(adj_a)
+    adj_b_df = pd.DataFrame(adj_b)
+
+    adj_a_df.to_csv(args.adj_a, index=False)
+    adj_b_df.to_csv(args.adj_b, index=False)
+
+    sample_sizes_df = pd.DataFrame(sample_sizes, columns=["a", "b"])
+    sample_sizes_df.to_csv(args.sample_sizes, index=False)
+
 
 
 if __name__ == "__main__":
@@ -181,6 +195,18 @@ if __name__ == "__main__":
     p.add_argument(
         "--out_b",
         help="Path in which to store the results of the spectral scan for set b.",
+    )
+    p.add_argument(
+        "--adj_a",
+        help="Path in which to store the adjusted results of the spectral scan for set a.",
+    )
+    p.add_argument(
+        "--adj_b",
+        help="Path in which to store the adjusted results of the spectral scan for set b.",
+    )
+    p.add_argument(
+        "--sample_sizes",
+        help="Path in which to store the sample sizes for each group.",
     )
     p.add_argument(
         "-k",
