@@ -7,12 +7,10 @@ from utils import (
     compute_spectra,
     compute_manual_chisquare,
     compute_manual_cosine_distance,
-    get_covariate_matrix,
-    calculate_covariate_by_marker,
     get_sample_sizes,
     perform_spectral_scan,
 )
-from schema import IHDResultSchema, MutationSchema
+from schema import MutationSchema
 import numba
 
 
@@ -71,16 +69,6 @@ def main(args):
           and {int(np.sum(spectra))} total mutations."""
     )
 
-    strata = np.ones(len(samples))
-    if args.stratify_column is not None:
-        sample2strata = dict(
-            zip(
-                mutations_filtered["sample"],
-                mutations_filtered[args.stratify_column],
-            )
-        )
-        strata = np.array([sample2strata[s] for s in samples])
-
     callable_kmer_arr = None
     if args.callable_kmers and args.k == 1:
         callable_kmer_arr = np.zeros(
@@ -117,27 +105,10 @@ def main(args):
 
     # convert genotype values to a matrix
     geno_asint_filtered_matrix = geno_asint[samples].values
-    # get an array of marker names at the filtered genotyped loci
-    markers_filtered = geno_asint["marker"].values
 
-    # compute similarity between allele frequencies at each marker
-    # genotype_similarity = compute_genotype_similarity(geno_asint_filtered_matrix)
-    genotype_similarity = np.ones(geno_asint_filtered_matrix.shape[0])
     distance_method = compute_manual_cosine_distance
     if args.distance_method == "chisquare":
         distance_method = compute_manual_chisquare
-
-    covariate_cols = []
-    covariate_matrix = get_covariate_matrix(
-        mutations_filtered,
-        samples,
-        covariate_cols=covariate_cols,
-    )
-
-    covariate_ratios = calculate_covariate_by_marker(
-        covariate_matrix,
-        geno_asint_filtered_matrix,
-    )
 
     # compute overall mutation spectra between mice with B and D alleles
     # at each locus
