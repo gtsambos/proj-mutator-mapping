@@ -160,6 +160,9 @@ def main(args):
     # calculate spectral differences between groups
     spectral_diff = adj_a - adj_b
 
+    # Normalise these differences so that each row sums to 1
+    spectral_diff_norm = spectral_diff / np.sum(spectral_diff, axis=1)[:, np.newaxis]
+
     # convert from numpy arrays to pandas dataframes and save output
     out_a_df = pd.DataFrame(out_a)
     out_b_df = pd.DataFrame(out_b)
@@ -178,6 +181,9 @@ def main(args):
 
     spectral_diff_df = pd.DataFrame(spectral_diff)
     spectral_diff_df.to_csv(args.diff, index=False)
+
+    spectral_diff_norm_df = pd.DataFrame(spectral_diff_norm)
+    spectral_diff_norm_df.to_csv(args.norm, index=False)
 
 
 
