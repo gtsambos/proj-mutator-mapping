@@ -175,6 +175,10 @@ if __name__ == "__main__":
         help="Path in which to store the spectral differences between groups.",
     )
     p.add_argument(
+        "--norm",
+        help="Path in which to store the normalised spectral differences between groups.",
+    )
+    p.add_argument(
         "-k",
         type=int,
         default=1,
