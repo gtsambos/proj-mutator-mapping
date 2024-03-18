@@ -457,6 +457,7 @@ def perform_spectral_scan(
 @numba.njit
 def get_sample_sizes(
     genotype_matrix: np.ndarray,
+    generations_list: List[int],
 ) -> np.ndarray:
     """Iterate over every genotyped marker in the `genotype_matrix`, 
     divide the haplotypes into two groups based on sample genotypes at the 
@@ -471,11 +472,18 @@ def get_sample_sizes(
         sample_sizes (np.ndarray): Sample sizes in the A and B sets at each locus.
     """
     sample_sizes: np.ndarray = np.zeros((genotype_matrix.shape[0], 2), dtype=np.float64)
+
     # loop over every site in the genotype matrix
     for ni in np.arange(genotype_matrix.shape[0]):
         a_hap_idxs = np.where(genotype_matrix[ni] == 0)[0]
         b_hap_idxs = np.where(genotype_matrix[ni] == 2)[0]
-        sample_sizes[ni] = np.array([len(a_hap_idxs), len(b_hap_idxs)])
+
+        # Get the number of inbreeding generations for each sample in each group.
+        a_gens = [generations_list[i] for i in a_hap_idxs]
+        b_gens = [generations_list[i] for i in b_hap_idxs]
+
+        # store the total number of generations in each group
+        sample_sizes[ni] = np.array([sum(a_gens), sum(b_gens)])
 
     return sample_sizes
 

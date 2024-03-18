@@ -69,6 +69,21 @@ def main(args):
           and {int(np.sum(spectra))} total mutations."""
     )
 
+    # Create a list showing each sample's number of inbreeding generations
+    generations = []
+    for s in samples:
+        # find the index of the row of counts that has s in in the 'sample' column using iloc
+        col_vals = mutations['sample'] == s
+        col_vals = col_vals.values
+        sample_exists = any(col_vals)
+        if sample_exists:
+            row_index = mutations[mutations['sample'] == s].index[0]
+            row = mutations.iloc[row_index]
+            generations.append(int(row["n_generations"]))
+        else:
+            print(f"Sample {s} not found in count file.")
+            sys.exit()
+
     callable_kmer_arr = None
     if args.callable_kmers and args.k == 1:
         callable_kmer_arr = np.zeros(
@@ -119,7 +134,13 @@ def main(args):
     )
 
     # get sample sizes for each group
-    sample_sizes = get_sample_sizes(geno_asint_filtered_matrix)
+    sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
+
+    print('samples:\n', samples)
+    print('number of samples:\n', len(samples))
+
+    # print the 100th row of geno_asint_filtered_matrix
+    print('geno_asint_filtered_matrix[100]:\n', geno_asint_filtered_matrix[100])
                                     
     # adjust overall mutation spectra by sample size
     adj_a = np.zeros(out_a.shape)
@@ -169,6 +190,11 @@ if __name__ == "__main__":
         "--config",
         type=str,
         help="Path to config file in JSON format.",
+    )
+    p.add_argument(
+        "--count_file",
+        type=str,
+        help="Path to file containing sample metadata (e.g., number of inbreeding generations).",
     )
     p.add_argument(
         "--diff",
