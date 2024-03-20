@@ -136,12 +136,6 @@ def main(args):
     # get sample sizes for each group
     sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
 
-    print('samples:\n', samples)
-    print('number of samples:\n', len(samples))
-
-    # print the 100th row of geno_asint_filtered_matrix
-    print('geno_asint_filtered_matrix[100]:\n', geno_asint_filtered_matrix[100])
-                                    
     # adjust overall mutation spectra by sample size
     adj_a = np.zeros(out_a.shape)
     adj_b = np.zeros(out_b.shape)
@@ -152,8 +146,9 @@ def main(args):
     # calculate spectral differences between groups
     spectral_diff = adj_a - adj_b
 
-    # Normalise these differences so that each row sums to 1
-    spectral_diff_norm = spectral_diff / np.sum(spectral_diff, axis=1)[:, np.newaxis]
+    # Normalise these differences so that each row sums to 1. (Use absolute values)
+    spectral_diff_abs = np.abs(spectral_diff)
+    spectral_diff_norm = spectral_diff / np.sum(spectral_diff_abs, axis=1)[:, np.newaxis]
 
     # convert from numpy arrays to pandas dataframes and save output
     out_a_df = pd.DataFrame(out_a)
