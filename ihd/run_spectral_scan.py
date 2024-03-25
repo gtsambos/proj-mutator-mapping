@@ -133,15 +133,22 @@ def main(args):
         distance_method=distance_method,
     )
 
-    # get sample sizes for each group
+    # get total generation times for each group
     sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
 
-    # adjust overall mutation spectra by sample size
+    # adjust overall mutation spectra by total generation times
     adj_a = np.zeros(out_a.shape)
     adj_b = np.zeros(out_b.shape)
     for i in range(out_a.shape[0]):
         adj_a[i] = out_a[i] / sample_sizes[i, 0]
         adj_b[i] = out_b[i] / sample_sizes[i, 1]
+
+    # adjust the columns to have mean 0 and variance 1
+    all_vals = np.concatenate((adj_a, adj_b), axis=0)
+    all_means = np.mean(all_vals, axis=0)
+    all_stds = np.std(all_vals, axis=0)
+    adj_a = (adj_a - all_means) / all_stds
+    adj_b = (adj_b - all_means) / all_stds
 
     # calculate spectral differences between groups
     spectral_diff = adj_a - adj_b
