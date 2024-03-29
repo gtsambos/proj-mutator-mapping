@@ -715,7 +715,105 @@ def perform_permutation_test(
             adjust_statistics=adjust_statistics,
         )
 
+        print("perm_distances\n")
+        print(perm_distances)
+        print(perm_distances.shape)
+
+
         null_distances[pi] = np.max(perm_distances)
+
+    return null_distances
+
+@numba.njit(parallel=True)
+def perform_wide_permutation_test(
+    spectra: np.ndarray,
+    genotype_matrix: np.ndarray,
+    genotype_similarity: np.ndarray,
+    covariate_ratios: np.ndarray,
+    strata: np.ndarray,
+    distance_method: Callable = compute_manual_chisquare,
+    n_permutations: int = 1_000,
+    progress: bool = False,
+    adjust_statistics: bool = True,
+) -> np.ndarray:
+    """Conduct a permutation test to assess the significance of 
+    any observed IHD peaks. In each of the `n_permutations` trials, 
+    do the following: 1. create a shuffled version of the input mutation `spectra`, so that
+    sample names/indices no longer correspond to the appropriate mutation
+    spectrum. 2. run an IHD scan by computing the distance between
+    the aggregate mutation spectrum of samples with either genotype
+    at every marker in the `genotype_matrix`. 3. store the maximum distance encountered at any marker.
+    Then, return a matrix of size (P, G), where P is the number of permutations and G is the number of
+    genotyped markers, in which we store the distance value encountered at
+    every marker in every permutation trial.
+
+    Args:
+        spectra (np.ndarray): A 2D numpy array of mutation spectra in all \
+            genotyped samples, of size (N, M) where N is the number of samples \
+            and M is the number of mutation types.
+
+        genotype_matrix (np.ndarray): A 2D numpy array of genotypes at every \
+            genotyped marker, of size (G, N), where G is the number of genotyped \
+            sites and N is the number of samples.
+
+        genotype_similarity (np.ndarray): A 1D numpy array of correlation coefficients \
+            of size (G, ), where G is the number of genotyped sites. At each element of \
+            the array, we store the correlation coefficient between genome-wide D allele \
+            frequencies calculated in samples with either allele at the corresponding site G_i.
+
+        covariate_ratios (np.ndarray): A 1D numpy array of size (G, ), where \
+            G is the number of genotyped sites. Contains the ratio of covariate \
+            values between haplotypes with A vs. B genotypes at every site.
+        
+        strata (np.ndarray): A 1D numpy array of "group labels" of size (N, ), where \
+            N is the number of samples. If samples are assigned different group labels, their \
+            spectra will be permuted *within* those groups during the permutation testing step.
+
+        distance_method (Callable, optional): Callable method to compute the \
+            distance between aggregate mutation spectra. Must accept two 1D numpy \
+            arrays and return a single floating point value. Defaults to \
+            `compute_manual_chisquare`.
+
+        n_permutations (int, optional): Number of permutations to perform \
+            (i.e., number of times to shuffle the spectra and compute IHDs at \
+            each marker). Defaults to 1_000.
+        
+        progress (bool, optional): Whether to output a count of how many permutations \
+            have completed. Defaults to False.
+        
+        adjust_statistics (bool, optional): Whether to compute adjusted statistics \
+            at each marker by regressing genotype similarity against statistics. \
+            Defaults to True.
+              
+
+    Returns:
+        null_distances (np.ndarray): 2D numpy array of size (P, G) \
+            where P is the number of permutations and G is either 1 \
+            (if we're computing a genome-wide distance threshold) or \
+            the number of genotyped markers (if we're computing thresholds \
+            at each individual marker).
+    """
+
+    # store max distance encountered in each permutation
+    null_distances: np.ndarray = np.zeros((n_permutations, genotype_matrix.shape[0]))
+
+    for pi in numba.prange(n_permutations):
+        if pi > 0 and pi % 100 == 0 and progress:
+            print(pi)
+        # shuffle the mutation spectra by row
+        shuffled_spectra = shuffle_spectra(spectra, strata)
+
+        # perform the IHD scan
+        perm_distances = perform_ihd_scan(
+            shuffled_spectra,
+            genotype_matrix,
+            genotype_similarity,
+            covariate_ratios,
+            distance_method=distance_method,
+            adjust_statistics=adjust_statistics,
+        )
+
+        null_distances[pi] = perm_distances
 
     return null_distances
 
@@ -906,6 +1004,11 @@ def compute_spectra(
         .reset_index()
         .fillna(value=0)
     )
+
+    print("using mutation columns:\n")
+    # print the column names of the spectra dataframe
+    print(spectra.columns)
+
     samples, mutations, spectra = (
         spectra["sample"].to_list(),
         [el[1] for el in spectra.columns[1:]],

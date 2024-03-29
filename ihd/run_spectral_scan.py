@@ -4,11 +4,14 @@ import argparse
 import json
 import sys
 from utils import (
+    calculate_covariate_by_marker,
     compute_spectra,
     compute_manual_chisquare,
     compute_manual_cosine_distance,
+    get_covariate_matrix,
     get_sample_sizes,
     perform_spectral_scan,
+    perform_wide_permutation_test,
 )
 from schema import MutationSchema
 import numba
@@ -84,6 +87,17 @@ def main(args):
             print(f"Sample {s} not found in count file.")
             sys.exit()
 
+    # Define strata
+    strata = np.ones(len(samples))
+    if args.stratify_column is not None:
+        sample2strata = dict(
+            zip(
+                mutations_filtered["sample"],
+                mutations_filtered[args.stratify_column],
+            )
+        )
+        strata = np.array([sample2strata[s] for s in samples])
+
     callable_kmer_arr = None
     if args.callable_kmers and args.k == 1:
         callable_kmer_arr = np.zeros(
@@ -121,6 +135,24 @@ def main(args):
     # convert genotype values to a matrix
     geno_asint_filtered_matrix = geno_asint[samples].values
 
+    # genotype_similarity = compute_genotype_similarity(geno_asint_filtered_matrix)
+    genotype_similarity = np.ones(geno_asint_filtered_matrix.shape[0])
+    # I don't understand why Tom has used all ones here?
+
+    # Also print out these -- don't know what they are doing
+    covariate_cols = []
+    covariate_matrix = get_covariate_matrix(
+        mutations_filtered,
+        samples,
+        covariate_cols=covariate_cols,
+    )
+
+    covariate_ratios = calculate_covariate_by_marker(
+        covariate_matrix,
+        geno_asint_filtered_matrix,
+    )
+
+
     distance_method = compute_manual_cosine_distance
     if args.distance_method == "chisquare":
         distance_method = compute_manual_chisquare
@@ -156,6 +188,25 @@ def main(args):
     # Normalise these differences so that each row sums to 1. (Use absolute values)
     spectral_diff_abs = np.abs(spectral_diff)
     spectral_diff_norm = spectral_diff / np.sum(spectral_diff_abs, axis=1)[:, np.newaxis]
+
+    # Permutation tests
+    null_distances = perform_wide_permutation_test(
+        spectra,
+        geno_asint_filtered_matrix,
+        genotype_similarity,
+        covariate_ratios,
+        strata,
+        distance_method=distance_method,
+        n_permutations=args.permutations,
+        progress=args.progress,
+        adjust_statistics=False,
+    )
+
+    # for the moment, save this output to disk (but automate it later) with numpy.save
+    np.save("data/spectral-differences/bxd.spd.permutations.npy", null_distances)
+    
+
+    # Saving output
 
     # convert from numpy arrays to pandas dataframes and save output
     out_a_df = pd.DataFrame(out_a)
