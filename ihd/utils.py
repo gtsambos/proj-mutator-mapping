@@ -715,11 +715,6 @@ def perform_permutation_test(
             adjust_statistics=adjust_statistics,
         )
 
-        print("perm_distances\n")
-        print(perm_distances)
-        print(perm_distances.shape)
-
-
         null_distances[pi] = np.max(perm_distances)
 
     return null_distances
