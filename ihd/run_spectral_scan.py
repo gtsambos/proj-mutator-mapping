@@ -165,29 +165,46 @@ def main(args):
         distance_method=distance_method,
     )
 
-    # get total generation times for each group
-    sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
+    out_a = pd.DataFrame(out_a)
+    out_b = pd.DataFrame(out_b)
 
-    # adjust overall mutation spectra by total generation times
-    adj_a = np.zeros(out_a.shape)
-    adj_b = np.zeros(out_b.shape)
-    for i in range(out_a.shape[0]):
-        adj_a[i] = out_a[i] / sample_sizes[i, 0]
-        adj_b[i] = out_b[i] / sample_sizes[i, 1]
+    # turn these into frequencies
+    out_a['sum'] = out_a.sum(axis=1)
+    out_a = out_a.div(out_a['sum'], axis=0)
+    out_a2 = out_a.div(out_a['sum'], axis=0)
 
-    # adjust the columns to have mean 0 and variance 1
-    all_vals = np.concatenate((adj_a, adj_b), axis=0)
-    all_means = np.mean(all_vals, axis=0)
-    all_stds = np.std(all_vals, axis=0)
-    adj_a = (adj_a - all_means) / all_stds
-    adj_b = (adj_b - all_means) / all_stds
+    out_b['sum'] = out_b.sum(axis=1)
+    out_b = out_b.div(out_b['sum'], axis=0)
+    out_b2 = out_b.div(out_b['sum'], axis=0)
 
-    # calculate spectral differences between groups
-    spectral_diff = adj_a - adj_b
+    # calculate the difference between the two
+    spectral_diff = out_a - out_b
+    spectral_diff.drop(columns=['sum'], inplace=True)
 
-    # Normalise these differences so that each row sums to 1. (Use absolute values)
-    spectral_diff_abs = np.abs(spectral_diff)
-    spectral_diff_norm = spectral_diff / np.sum(spectral_diff_abs, axis=1)[:, np.newaxis]
+
+    # # get total generation times for each group
+    # sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
+
+    # # adjust overall mutation spectra by total generation times
+    # adj_a = np.zeros(out_a.shape)
+    # adj_b = np.zeros(out_b.shape)
+    # for i in range(out_a.shape[0]):
+    #     adj_a[i] = out_a[i] / sample_sizes[i, 0]
+    #     adj_b[i] = out_b[i] / sample_sizes[i, 1]
+
+    # # adjust the columns to have mean 0 and variance 1
+    # all_vals = np.concatenate((adj_a, adj_b), axis=0)
+    # all_means = np.mean(all_vals, axis=0)
+    # all_stds = np.std(all_vals, axis=0)
+    # adj_a = (adj_a - all_means) / all_stds
+    # adj_b = (adj_b - all_means) / all_stds
+
+    # # calculate spectral differences between groups
+    # spectral_diff = adj_a - adj_b
+
+    # # Normalise these differences so that each row sums to 1. (Use absolute values)
+    # spectral_diff_abs = np.abs(spectral_diff)
+    # spectral_diff_norm = spectral_diff / np.sum(spectral_diff_abs, axis=1)[:, np.newaxis]
 
     # Permutation tests
     null_distances = perform_wide_permutation_test(
@@ -215,20 +232,20 @@ def main(args):
     out_a_df.to_csv("data/spectral-differences/bxd.spd.a.csv", index=False)
     out_b_df.to_csv("data/spectral-differences/bxd.spd.b.csv", index=False)
 
-    adj_a_df = pd.DataFrame(adj_a)
-    adj_b_df = pd.DataFrame(adj_b)
+    # adj_a_df = pd.DataFrame(adj_a)
+    # adj_b_df = pd.DataFrame(adj_b)
 
-    adj_a_df.to_csv("data/spectral-differences/bxd.spd-adj.a.csv", index=False)
-    adj_b_df.to_csv("data/spectral-differences/bxd.spd-adj.b.csv", index=False)
+    # adj_a_df.to_csv("data/spectral-differences/bxd.spd-adj.a.csv", index=False)
+    # adj_b_df.to_csv("data/spectral-differences/bxd.spd-adj.b.csv", index=False)
 
-    sample_sizes_df = pd.DataFrame(sample_sizes, columns=["a", "b"])
-    sample_sizes_df.to_csv("data/spectral-differences/bxd.spd.samples.csv", index=False)
+    # sample_sizes_df = pd.DataFrame(sample_sizes, columns=["a", "b"])
+    # sample_sizes_df.to_csv("data/spectral-differences/bxd.spd.samples.csv", index=False)
 
     spectral_diff_df = pd.DataFrame(spectral_diff)
-    spectral_diff_df.to_csv(args.diff, index=False)
+    spectral_diff_df.to_csv(args.norm, index=False)
 
-    spectral_diff_norm_df = pd.DataFrame(spectral_diff_norm)
-    spectral_diff_norm_df.to_csv(args.norm, index=False)
+    # spectral_diff_norm_df = pd.DataFrame(spectral_diff_norm)
+    # spectral_diff_norm_df.to_csv(args.norm, index=False)
 
 
 
@@ -249,10 +266,10 @@ if __name__ == "__main__":
         type=str,
         help="Path to file containing sample metadata (e.g., number of inbreeding generations).",
     )
-    p.add_argument(
-        "--diff",
-        help="Path in which to store the spectral differences between groups.",
-    )
+    # p.add_argument(
+    #     "--diff",
+    #     help="Path in which to store the spectral differences between groups.",
+    # )
     p.add_argument(
         "--norm",
         help="Path in which to store the normalised spectral differences between groups.",
