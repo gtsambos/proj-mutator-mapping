@@ -116,7 +116,13 @@ def main(args):
         geno_asint = geno_asint.iloc[geno_asint.index.difference(marker_idxs)]
 
     # convert genotype values to a matrix
-    geno_asint_filtered_matrix = geno_asint[samples].values
+    if args.shuffle:
+        assert args.shuffle_file is not None
+        geno_asint_filtered_matrix = np.load(args.shuffle_file)
+        geno_asint_filtered_matrix = geno_asint_filtered_matrix['arr_0']
+    else:
+        geno_asint_filtered_matrix = geno_asint[samples].values
+
     # get an array of marker names at the filtered genotyped loci
     markers_filtered = geno_asint["marker"].values
 
@@ -275,6 +281,18 @@ if __name__ == "__main__":
         default=None,
         type=str,
         help="""If specified, a chromosomal region (chr:start-end) that we should adjust for in our AMSD scans. Start and end coordinates should be specified in Mb. Default is None""",
+    )
+    p.add_argument(
+        '-shuffle',
+        default=False,
+        action='store_true',
+        help="""Whether to use shuffled genotypes IHD scan. If True, uses shuffled genotypes read in directly from the spectral scan output.""",
+    )
+    p.add_argument(
+        '-shuffle_file',
+        type=str,
+        default=None,
+        help="""Path to input for shuffled genotypes. Required if shuffle is True.""",
     )
     args = p.parse_args()
 

@@ -135,6 +135,17 @@ def main(args):
     # convert genotype values to a matrix
     geno_asint_filtered_matrix = geno_asint[samples].values
 
+    # If args.shuffle is True, shuffle the columns of the genotype matrix
+    # (note: it's easier to do this on the rows, using np.random.shuffle)
+    if args.shuffle:
+        geno_asint_filtered_matrix = geno_asint_filtered_matrix.T
+        np.random.shuffle(geno_asint_filtered_matrix)
+        geno_asint_filtered_matrix = geno_asint_filtered_matrix.T
+
+        # save the shuffled matrix to disk.
+        assert args.shuffle_file is not None
+        np.savez(args.shuffle_file, geno_asint_filtered_matrix)
+
     # genotype_similarity = compute_genotype_similarity(geno_asint_filtered_matrix)
     genotype_similarity = np.ones(geno_asint_filtered_matrix.shape[0])
     # I don't understand why Tom has used all ones here?
@@ -171,11 +182,11 @@ def main(args):
     # turn these into frequencies
     out_a['sum'] = out_a.sum(axis=1)
     out_a = out_a.div(out_a['sum'], axis=0)
-    out_a2 = out_a.div(out_a['sum'], axis=0)
+    # out_a2 = out_a.div(out_a['sum'], axis=0)
 
     out_b['sum'] = out_b.sum(axis=1)
     out_b = out_b.div(out_b['sum'], axis=0)
-    out_b2 = out_b.div(out_b['sum'], axis=0)
+    # out_b2 = out_b.div(out_b['sum'], axis=0)
 
     # calculate the difference between the two
     spectral_diff = out_a - out_b
@@ -207,45 +218,39 @@ def main(args):
     # spectral_diff_norm = spectral_diff / np.sum(spectral_diff_abs, axis=1)[:, np.newaxis]
 
     # Permutation tests
-    null_distances = perform_wide_permutation_test(
-        spectra,
-        geno_asint_filtered_matrix,
-        genotype_similarity,
-        covariate_ratios,
-        strata,
-        distance_method=distance_method,
-        n_permutations=args.permutations,
-        progress=args.progress,
-        adjust_statistics=False,
-    )
+    if args.shuffle is False:
 
-    # for the moment, save this output to disk (but automate it later) with numpy.save
-    np.save("data/spectral-differences/bxd.spd.permutations.npy", null_distances)
-    
+        null_distances = perform_wide_permutation_test(
+            spectra,
+            geno_asint_filtered_matrix,
+            genotype_similarity,
+            covariate_ratios,
+            strata,
+            distance_method=distance_method,
+            n_permutations=args.permutations,
+            progress=args.progress,
+            adjust_statistics=False,
+        )
 
-    # Saving output
+        # for the moment, save this output to disk (but automate it later) with numpy.save
+        np.save("data/spectral-differences/bxd.spd.permutations.npy", null_distances)
+        
 
-    # convert from numpy arrays to pandas dataframes and save output
-    out_a_df = pd.DataFrame(out_a)
-    out_b_df = pd.DataFrame(out_b)
+        # Saving output
 
-    out_a_df.to_csv("data/spectral-differences/bxd.spd.a.csv", index=False)
-    out_b_df.to_csv("data/spectral-differences/bxd.spd.b.csv", index=False)
+        # convert from numpy arrays to pandas dataframes and save output
+        out_a_df = pd.DataFrame(out_a)
+        out_b_df = pd.DataFrame(out_b)
 
-    # adj_a_df = pd.DataFrame(adj_a)
-    # adj_b_df = pd.DataFrame(adj_b)
+        out_a_df.to_csv("data/spectral-differences/bxd.spd.a.csv", index=False)
+        out_b_df.to_csv("data/spectral-differences/bxd.spd.b.csv", index=False)
 
-    # adj_a_df.to_csv("data/spectral-differences/bxd.spd-adj.a.csv", index=False)
-    # adj_b_df.to_csv("data/spectral-differences/bxd.spd-adj.b.csv", index=False)
-
-    # sample_sizes_df = pd.DataFrame(sample_sizes, columns=["a", "b"])
-    # sample_sizes_df.to_csv("data/spectral-differences/bxd.spd.samples.csv", index=False)
+        # spectral_diff_df = pd.DataFrame(spectral_diff)
+        # spectral_diff_df.to_csv(args.norm, index=False)
 
     spectral_diff_df = pd.DataFrame(spectral_diff)
     spectral_diff_df.to_csv(args.norm, index=False)
 
-    # spectral_diff_norm_df = pd.DataFrame(spectral_diff_norm)
-    # spectral_diff_norm_df.to_csv(args.norm, index=False)
 
 
 
@@ -320,6 +325,18 @@ if __name__ == "__main__":
         default=None,
         type=str,
         help="""If specified, a chromosomal region (chr:start-end) that we should adjust for in our AMSD scans. Start and end coordinates should be specified in Mb. Default is None""",
+    )
+    p.add_argument(
+        "-shuffle",
+        default=False,
+        action="store_true",
+        help="""Whether to shuffle the columns of the genotype matrix before performing the spectral scan. Default is False.""",
+    )
+    p.add_argument(
+        '-shuffle_file',
+        type=str,
+        default=None,
+        help="""Path to output for shuffled genotypes. Required if shuffle is True.""",
     )
     args = p.parse_args()
 
