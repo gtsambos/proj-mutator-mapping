@@ -42,6 +42,13 @@ def filter_mutation_data(
     return mutations_filtered
 
 
+def adjust_row(row): # ensure C>A is always positive
+    if row[3] < 0:
+        return row * -1
+    else:
+        return row
+
+
 def main(args):
     # read in JSON file with file paths
     config_dict = None
@@ -191,6 +198,11 @@ def main(args):
     # calculate the difference between the two
     spectral_diff = out_a - out_b
     spectral_diff.drop(columns=['sum'], inplace=True)
+
+    # Adjust differences so that the first (A>C) mutation frequency is always positive.
+    # This is because whether a signature is associated with the Bs or Ds is arbitrary.
+    # print("applying adjustment")
+    spectral_diff = spectral_diff.apply(adjust_row, axis=1)
 
 
     # # get total generation times for each group
