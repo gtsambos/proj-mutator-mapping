@@ -4,7 +4,7 @@ import sys
 import argparse
 from skbio.stats.composition import clr
 
-sys.path.insert(0, '/Users/tomsasani/quinlanlab/proj-mutator-mapping/')
+sys.path.insert(0, '/Users/gt/projects/proj-mutator-mapping/')
 from ihd.utils import compute_spectra
 
 def main(args):

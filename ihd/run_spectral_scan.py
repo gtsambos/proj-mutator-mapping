@@ -82,7 +82,6 @@ def main(args):
     # Create a list showing each sample's number of inbreeding generations
     generations = []
     for s in samples:
-        # find the index of the row of counts that has s in in the 'sample' column using iloc
         col_vals = mutations['sample'] == s
         col_vals = col_vals.values
         sample_exists = any(col_vals)
@@ -93,6 +92,45 @@ def main(args):
         else:
             print(f"Sample {s} not found in count file.")
             sys.exit()
+
+    # print(generations)
+
+    # Make a scatterplot with the number of generations on the x-axis and the sum of each row of spectra on the y-axis
+    # import matplotlib.pyplot as plt
+    # plt.scatter(generations, np.sum(spectra, axis=1), s=1)
+    # fit a line to the data
+    # m, b = np.polyfit(generations, np.sum(spectra, axis=1), 1)
+    # plt.plot(generations, m*np.array(generations) + b)
+    # plt.xlabel("Number of generations")
+    # plt.ylabel("total mutation count")
+    # plt.title("Total mutation count vs number of generations")
+    # plt.show()
+
+    # diff = [(m*x + b)/y for x, y in zip(generations, np.sum(spectra, axis=1))]
+    # plt.scatter(generations, diff, s=1)
+    # # add a line at y=1
+    # plt.axhline(y=1, color='gray', linestyle='--')
+    # plt.xlabel("Number of generations")
+    # plt.ylabel("ratio between actual and expected mutation count")
+    # plt.show()
+
+
+    # count the correlation between the sum of each row of spectra and the number of generations
+    # print("Before adjustment")
+    # print(np.corrcoef(np.sum(spectra, axis=1), generations))
+    # print(np.sum(spectra, axis=1).shape)
+
+    # Adjust spectra by the number of inbreeding generations.
+    # This is because the number of generations is likely to be correlated with the number of mutations.
+    
+    
+    for i in range(len(spectra)):
+        spectra[i] = spectra[i] / generations[i]
+
+    # print("After adjustment")
+    # print(np.corrcoef(np.sum(spectra, axis=1), generations))
+    # print(np.sum(spectra, axis=1).shape)
+
 
     # Define strata
     strata = np.ones(len(samples))
@@ -177,43 +215,49 @@ def main(args):
 
     # compute overall mutation spectra between mice with B and D alleles
     # at each locus
+
     out_a, out_b = perform_spectral_scan(
         spectra,
         geno_asint_filtered_matrix,
         distance_method=distance_method,
     )
 
-    out_a = pd.DataFrame(out_a)
-    out_b = pd.DataFrame(out_b)
+    # out_a = pd.DataFrame(out_a)
+    # out_b = pd.DataFrame(out_b)
 
-    # turn these into frequencies
-    out_a['sum'] = out_a.sum(axis=1)
-    out_a = out_a.div(out_a['sum'], axis=0)
-    # out_a2 = out_a.div(out_a['sum'], axis=0)
+    # # turn these into frequencies
+    # out_a['sum'] = out_a.sum(axis=1)
+    # out_a = out_a.div(out_a['sum'], axis=0)
+    # # out_a2 = out_a.div(out_a['sum'], axis=0)
 
-    out_b['sum'] = out_b.sum(axis=1)
-    out_b = out_b.div(out_b['sum'], axis=0)
-    # out_b2 = out_b.div(out_b['sum'], axis=0)
+    # out_b['sum'] = out_b.sum(axis=1)
+    # out_b = out_b.div(out_b['sum'], axis=0)
+    # # out_b2 = out_b.div(out_b['sum'], axis=0)
 
     # calculate the difference between the two
-    spectral_diff = out_a - out_b
-    spectral_diff.drop(columns=['sum'], inplace=True)
+    # spectral_diff = out_a - out_b
+    # spectral_diff.drop(columns=['sum'], inplace=True)
 
-    # Adjust differences so that the first (A>C) mutation frequency is always positive.
-    # This is because whether a signature is associated with the Bs or Ds is arbitrary.
-    # print("applying adjustment")
-    spectral_diff = spectral_diff.apply(adjust_row, axis=1)
+    # # Adjust differences so that the first (A>C) mutation frequency is always positive.
+    # # This is because whether a signature is associated with the Bs or Ds is arbitrary.
+    # # print("applying adjustment")
+    # spectral_diff = spectral_diff.apply(adjust_row, axis=1)
 
 
-    # # get total generation times for each group
-    # sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
+    # get total generation times for each group
+    sample_sizes = get_sample_sizes(geno_asint_filtered_matrix, generations)
 
-    # # adjust overall mutation spectra by total generation times
-    # adj_a = np.zeros(out_a.shape)
-    # adj_b = np.zeros(out_b.shape)
-    # for i in range(out_a.shape[0]):
-    #     adj_a[i] = out_a[i] / sample_sizes[i, 0]
-    #     adj_b[i] = out_b[i] / sample_sizes[i, 1]
+    # adjust overall mutation spectra by total generation times
+    # print(out_a.shape, "adj_a shape")   
+    # print(sample_sizes.shape, "sample_sizes shape")
+
+    adj_a = np.zeros(out_a.shape)
+    adj_b = np.zeros(out_b.shape)
+    for i in range(out_a.shape[0]):
+        # print(out_a[i].shape, "out_a[i] shape")
+        # print(sample_sizes[i, 0], "sample_sizes[i, 0] shape")
+        adj_a[i] = out_a[i] / sample_sizes[i, 0]
+        adj_b[i] = out_b[i] / sample_sizes[i, 1]
 
     # # adjust the columns to have mean 0 and variance 1
     # all_vals = np.concatenate((adj_a, adj_b), axis=0)
@@ -222,8 +266,8 @@ def main(args):
     # adj_a = (adj_a - all_means) / all_stds
     # adj_b = (adj_b - all_means) / all_stds
 
-    # # calculate spectral differences between groups
-    # spectral_diff = adj_a - adj_b
+    # calculate spectral differences between groups
+    spectral_diff = adj_a - adj_b
 
     # # Normalise these differences so that each row sums to 1. (Use absolute values)
     # spectral_diff_abs = np.abs(spectral_diff)
@@ -251,8 +295,8 @@ def main(args):
         # Saving output
 
         # convert from numpy arrays to pandas dataframes and save output
-        out_a_df = pd.DataFrame(out_a)
-        out_b_df = pd.DataFrame(out_b)
+        out_a_df = pd.DataFrame(adj_a)
+        out_b_df = pd.DataFrame(adj_b)
 
         out_a_df.to_csv("data/spectral-differences/bxd.spd.a.csv", index=False)
         out_b_df.to_csv("data/spectral-differences/bxd.spd.b.csv", index=False)

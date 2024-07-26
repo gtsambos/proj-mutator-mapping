@@ -478,12 +478,13 @@ def get_sample_sizes(
         a_hap_idxs = np.where(genotype_matrix[ni] == 0)[0]
         b_hap_idxs = np.where(genotype_matrix[ni] == 2)[0]
 
-        # Get the number of inbreeding generations for each sample in each group.
-        a_gens = [generations_list[i] for i in a_hap_idxs]
-        b_gens = [generations_list[i] for i in b_hap_idxs]
+        # # Get the number of inbreeding generations for each sample in each group.
+        # a_gens = [generations_list[i] for i in a_hap_idxs]
+        # b_gens = [generations_list[i] for i in b_hap_idxs]
 
         # store the total number of generations in each group
-        sample_sizes[ni] = np.array([sum(a_gens), sum(b_gens)])
+        # sample_sizes[ni] = np.array([sum(a_gens), sum(b_gens)])
+        sample_sizes[ni] = np.array([len(a_hap_idxs), len(b_hap_idxs)])
 
     return sample_sizes
 
